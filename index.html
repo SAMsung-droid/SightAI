@@ -12,8 +12,8 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap"
         rel="stylesheet">
-    <!-- Scripts Externos (CDNs Sincronizados) -->
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <!-- Scripts Externos (Versão Legacy Estável para Mobile) -->
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.iife.js"></script>
 </head>
@@ -113,9 +113,8 @@
                 </div>
             </div>
 
-            <article class="text-display" id="output-text" tabindex="0" role="region" aria-label="Texto convertido">
-                <!-- Texto processado aparecerá aqui -->
-            </article>
+            <textarea class="text-display" id="output-text" aria-label="Texto convertido para edição"
+                spellcheck="true"></textarea>
 
             <nav class="navigation-controls" aria-label="Controles de navegação">
                 <button class="btn btn-primary" id="btn-restart">

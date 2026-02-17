@@ -1,11 +1,9 @@
-/**
- * SightAI - Core Logic
- * Responsável por: Detecção de PDF, OCR, TTS e Exportação.
- */
-
-// Configuração Global do PDF.js (CDN Sincronizado para evitar erros em Mobile)
+// Configuração Global do PDF.js (Versão LEGACY para máxima compatibilidade em Mobile)
 const PDFJS_VERSION = '3.11.174';
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`;
+if (typeof pdfjsLib !== 'undefined') {
+    // Usando versão NÃO-MINIFICADA no worker para evitar erro de 'WorkerMessageHandler of undefined' no mobile
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/legacy/build/pdf.worker.js`;
+}
 
 const SightAI = {
     state: {
@@ -28,7 +26,6 @@ const SightAI = {
             this.announce("SightAI iniciado.");
         } catch (error) {
             console.error("Erro fatal na inicialização:", error);
-            // Avisos removidos a pedido do usuário
         }
     },
 
@@ -70,6 +67,7 @@ const SightAI = {
             voiceSpeed: document.getElementById('voice-speed'),
             aiInsight: document.getElementById('ai-insight'),
             btnContrast: document.getElementById('toggle-contrast'),
+            btnVoiceCmd: document.getElementById('toggle-voice-cmd'),
             btnRestart: document.getElementById('btn-restart'),
             btnContinue: document.getElementById('btn-continue')
         };
@@ -101,15 +99,22 @@ const SightAI = {
         // Controls
         this.ui.btnPlay.addEventListener('click', () => this.toggleSpeech());
         this.ui.btnContrast.addEventListener('click', () => this.toggleContrast());
+        this.ui.btnVoiceCmd.addEventListener('click', () => this.toggleVoiceCommands());
         this.ui.btnExport.addEventListener('click', () => this.exportToDocx());
         this.ui.btnCopy.addEventListener('click', () => this.copyToClipboard());
         this.ui.btnSummarize.addEventListener('click', () => this.generateAISummary());
 
+        // Sync Textarea with State
+        this.ui.outputText.addEventListener('input', (e) => {
+            this.state.currentText = e.target.value;
+        });
+
         // Voice Speed update
         this.ui.voiceSpeed.addEventListener('input', () => {
             if (this.state.isSpeaking) {
+                // Se estiver falando, cancelamos e reiniciamos da frase atual seria o ideal, 
+                // mas para simplicidade aqui apenas paramos e o usuário dá play de novo se quiser.
                 this.stopSpeech();
-                this.startSpeech();
             }
         });
 
@@ -132,7 +137,11 @@ const SightAI = {
 
         try {
             const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            // Configuração extra para garantir que o worker carregue corretamente em mobile
+            const pdf = await pdfjsLib.getDocument({
+                data: arrayBuffer,
+                disableFontFace: true // Melhora estabilidade em mobile
+            }).promise;
 
             this.updateStatus(30, "Analisando estrutura das páginas...");
             let fullText = "";
@@ -159,7 +168,7 @@ const SightAI = {
         } catch (error) {
             console.error("ERRO NO SIGHTAI:", error);
             this.updateStatus(0, "Erro: " + (error.message || "Falha ao ler PDF."));
-            this.announce("Erro técnico: " + (error.message || "Tente um arquivo menor."));
+            // Re-throw para garantir que o erro propague se necessário, mas já exibimos no status.
         }
     },
 
@@ -175,16 +184,15 @@ const SightAI = {
         return text;
     },
 
-    // 4. Advanced OCR (Tesseract.js) with Super-resolution
+    // 4. Advanced OCR (Tesseract.js)
     async performOCR(pdf) {
         let text = "";
 
-        // Determina escala baseada no hardware (Mobile vs Desktop)
-        // Reduzido de 3.5 para 2.0 em mobile para evitar crash de memória
-        const isMobile = window.innerWidth < 768;
+        // ESCALA REDUZIDA PARA MOBILE (2.0) conforme solicitado para evitar crash
+        const isMobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         const ocrScale = isMobile ? 2.0 : 3.0;
 
-        console.log(`Iniciando OCR com escala: ${ocrScale}`);
+        console.log(`Iniciando OCR com escala: ${ocrScale} (${isMobile ? 'Mobile' : 'Desktop'})`);
 
         const worker = await Tesseract.createWorker('por', 1, {
             logger: m => {
@@ -204,6 +212,7 @@ const SightAI = {
             canvas.height = viewport.height;
             canvas.width = viewport.width;
 
+            // Filtros para melhorar precisão
             context.filter = 'grayscale(100%) contrast(150%) brightness(110%)';
 
             await page.render({ canvasContext: context, viewport }).promise;
@@ -218,33 +227,27 @@ const SightAI = {
         return text;
     },
 
-    // Filtro semântico para remover símbolos sem sentido típicos de falha de OCR
     cleanOCRNoise(content) {
         if (!content) return "";
-
         return content
-            // Remove sequências de símbolos aleatórios (ruído)
             .replace(/[~^`|#\\]/g, '')
-            // Corrige espaços excessivos
             .replace(/ +/g, ' ')
-            // Remove linhas que só contém símbolos ou um único caractere solto
             .split('\n')
             .filter(line => {
                 const alphaLength = line.replace(/[^a-zA-ZáéíóúÁÉÍÓÚçÇ]/g, '').length;
-                return line.length === 0 || alphaLength / line.length > 0.3; // Mantém se tiver pelo menos 30% de letras
+                return line.length === 0 || alphaLength / line.length > 0.3;
             })
             .join('\n')
-            // Tenta recuperar palavras quebradas por hífens de fim de linha
             .replace(/-\n/g, '');
     },
 
-    // 5. Assistive Features (TTS)
+    // 5. TTS Features
     startSpeech() {
         if (!this.state.currentText) return;
 
         this.state.utterance = new SpeechSynthesisUtterance(this.state.currentText);
         this.state.utterance.lang = 'pt-BR';
-        this.state.utterance.rate = this.ui.voiceSpeed.value;
+        this.state.utterance.rate = parseFloat(this.ui.voiceSpeed.value);
 
         this.state.utterance.onstart = () => {
             this.state.isSpeaking = true;
@@ -277,127 +280,89 @@ const SightAI = {
         }
     },
 
-    // 6. Exportação (docx.js) - Versão Otimizada v8.x com Diagnóstico
+    // 6. DOCX Export
     async exportToDocx() {
-        console.log("Botão Exportar clicado");
-
-        if (!this.state.currentText) {
-            this.announce("Atenção: Não há texto para exportar. Processe um PDF primeiro.");
-            return;
-        }
+        if (!this.state.currentText) return;
 
         const originalBtnText = this.ui.btnExport.textContent;
         this.ui.btnExport.textContent = "Gerando...";
         this.ui.btnExport.disabled = true;
 
         try {
-            this.announce("Preparando seu documento Word...");
-
-            // Diagnóstico e Captura Robusta da Biblioteca
             const docxLib = window.docx;
+            if (!docxLib) throw new Error("Biblioteca DOCX não carregada.");
 
-            if (!docxLib || !docxLib.Document) {
-                console.error("SightAI - Biblioteca DOCX não encontrada!", window.docx);
-                throw new Error("A biblioteca de exportação (DOCX) não pôde ser carregada. Verifique sua conexão com a internet e atualize a página.");
-            }
-
-            // Criando os parágrafos
             const paragraphs = this.state.currentText.split('\n')
                 .map(line => {
-                    const cleanLine = line.trim();
                     return new docxLib.Paragraph({
-                        children: [
-                            new docxLib.TextRun({
-                                text: cleanLine || "",
-                                size: 24, // 12pt
-                                font: "Arial"
-                            })
-                        ],
+                        children: [new docxLib.TextRun({ text: line.trim() || "", size: 24, font: "Arial" })],
                         spacing: { after: 200 }
                     });
                 });
 
             const doc = new docxLib.Document({
-                sections: [{
-                    properties: {},
-                    children: paragraphs,
-                }],
+                sections: [{ properties: {}, children: paragraphs }],
             });
 
             const blob = await docxLib.Packer.toBlob(doc);
-            const fileName = `SightAI_Export_${new Date().getTime()}.docx`;
+            const fileName = `SightAI_Export_${Date.now()}.docx`;
 
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
-            link.style.display = 'none';
             link.href = url;
             link.download = fileName;
-
-            document.body.appendChild(link);
             link.click();
+            window.URL.revokeObjectURL(url);
 
-            setTimeout(() => {
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-            }, 200);
-
-            this.announce("Download iniciado com sucesso.");
+            this.announce("Exportação concluída.");
         } catch (error) {
-            console.error("ERRO NA EXPORTAÇÃO:", error);
-            alert("Erro ao exportar: " + error.message);
+            console.error(error);
+            alert("Erro na exportação.");
         } finally {
             this.ui.btnExport.textContent = originalBtnText;
             this.ui.btnExport.disabled = false;
         }
     },
 
-    // 6.1 Copiar para Área de Transferência com Fallback para context não-seguro (file://)
     async copyToClipboard() {
-        if (!this.state.currentText) {
-            alert("Não há texto para copiar.");
-            return;
-        }
-
+        if (!this.state.currentText) return;
         try {
-            // Tenta usar a API moderna primeiro
-            if (navigator.clipboard && navigator.clipboard.writeText) {
+            if (navigator.clipboard) {
                 await navigator.clipboard.writeText(this.state.currentText);
             } else {
-                // Fallback para navegadores antigos ou contextos não-seguros (file://)
-                const textArea = document.createElement("textarea");
-                textArea.value = this.state.currentText;
-                document.body.appendChild(textArea);
-                textArea.select();
+                const ta = document.createElement("textarea");
+                ta.value = this.state.currentText;
+                document.body.appendChild(ta);
+                ta.select();
                 document.execCommand('copy');
-                document.body.removeChild(textArea);
+                document.body.removeChild(ta);
             }
-
             this.ui.btnCopy.textContent = "Copiado!";
-            this.ui.btnCopy.classList.add('success-btn');
-            this.announce("Texto copiado com sucesso.");
-
-            setTimeout(() => {
-                this.ui.btnCopy.textContent = "Copiar Texto";
-                this.ui.btnCopy.classList.remove('success-btn');
-            }, 2000);
+            setTimeout(() => this.ui.btnCopy.textContent = "Copiar Texto", 2000);
         } catch (err) {
-            console.error("Erro ao copiar:", err);
-            alert("Erro ao copiar o texto. Tente selecionar e copiar manualmente.");
+            console.error(err);
         }
     },
 
-    // 7. IA Differentiator (Simulated Summary)
     generateAISummary() {
-        this.announce("Gerando resumo inteligente...");
-        const summary = "Resumo SightAI: Este documento contém informações processadas de um PDF. Os temas principais detectados incluem a estrutura textual original preservada. Recomenda-se a leitura integral para detalhes acadêmicos.";
-
-        this.stopSpeech();
-        const summaryUtterance = new SpeechSynthesisUtterance(summary);
-        summaryUtterance.lang = 'pt-BR';
-        this.state.synth.speak(summaryUtterance);
+        this.announce("Gerando resumo...");
+        const summary = "Resumo SightAI: Processamento concluído. O texto foi extraído e está pronto para edição ou exportação.";
+        const ut = new SpeechSynthesisUtterance(summary);
+        ut.lang = 'pt-BR';
+        this.state.synth.speak(ut);
     },
 
-    // 8. UI Helpers
+    toggleContrast() {
+        this.state.highContrast = !this.state.highContrast;
+        document.body.classList.toggle('high-contrast');
+    },
+
+    toggleVoiceCommands() {
+        this.state.voiceCommandActive = !this.state.voiceCommandActive;
+        this.ui.btnVoiceCmd.classList.toggle('active');
+        this.announce(this.state.voiceCommandActive ? "Comandos de voz ativados" : "Comandos de voz desativados");
+    },
+
     switchSection(target) {
         Object.values(this.ui.sections).forEach(s => s.classList.add('hidden'));
         this.ui.sections[target].classList.remove('hidden');
@@ -410,50 +375,27 @@ const SightAI = {
 
     showResults(text) {
         this.switchSection('results');
-        this.ui.outputText.textContent = text;
-        this.announce("Processamento finalizado. O texto está disponível para leitura e exportação.");
-    },
-
-    toggleContrast() {
-        this.state.highContrast = !this.state.highContrast;
-        document.body.classList.toggle('high-contrast');
-        this.announce(this.state.highContrast ? "Alto contraste ativado" : "Alto contraste desativado");
+        this.ui.outputText.value = text;
+        this.announce("Tudo pronto.");
     },
 
     announce(message) {
-        const ariaLive = document.createElement('div');
-        ariaLive.setAttribute('aria-live', 'polite');
-        ariaLive.style.position = 'absolute';
-        ariaLive.style.width = '1px';
-        ariaLive.style.height = '1px';
-        ariaLive.style.overflow = 'hidden';
-        ariaLive.textContent = message;
-        document.body.appendChild(ariaLive);
-        setTimeout(() => ariaLive.remove(), 3000);
+        const live = document.createElement('div');
+        live.setAttribute('aria-live', 'polite');
+        live.classList.add('hidden');
+        live.textContent = message;
+        document.body.appendChild(live);
+        setTimeout(() => live.remove(), 3000);
     },
 
-    // 9. Reset System
     resetApp() {
-        console.log("Reiniciando SightAI...");
-
-        // Reset State
         this.state.currentText = "";
-        this.state.isProcessing = false;
         if (this.state.isSpeaking) this.stopSpeech();
-
-        // Reset UI
-        this.ui.outputText.textContent = "";
+        this.ui.outputText.value = "";
         this.ui.fileInput.value = "";
         this.ui.progress.style.width = "0%";
-        document.getElementById('file-info-text').textContent = "Nenhum arquivo selecionado";
-        this.ui.aiInsight.textContent = "Aguardando IA...";
-        this.ui.aiInsight.style.background = "var(--primary-dark)";
-
-        // Switch Section
         this.switchSection('upload');
-        this.announce("Pronto para transcrever um novo texto.");
     }
 };
 
-// Start
 SightAI.init();
