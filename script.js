@@ -19,8 +19,10 @@ const SightAI = {
         abnt: {
             institution: "",
             author: "",
+            advisor: "",
             title: "",
             subtitle: "",
+            nature: "",
             city: "",
             year: ""
         }
@@ -88,8 +90,10 @@ const SightAI = {
             abntInputs: {
                 institution: document.getElementById('abnt-institution'),
                 author: document.getElementById('abnt-author'),
+                advisor: document.getElementById('abnt-advisor'),
                 title: document.getElementById('abnt-title'),
                 subtitle: document.getElementById('abnt-subtitle'),
+                nature: document.getElementById('abnt-nature'),
                 city: document.getElementById('abnt-city'),
                 year: document.getElementById('abnt-year')
             }
@@ -414,6 +418,16 @@ const SightAI = {
 
         // Validation for ABNT
         if (useAbnt) {
+            // Sync current values from UI inputs
+            this.state.abnt.institution = this.ui.abntInputs.institution.value;
+            this.state.abnt.author = this.ui.abntInputs.author.value;
+            this.state.abnt.advisor = this.ui.abntInputs.advisor.value;
+            this.state.abnt.title = this.ui.abntInputs.title.value;
+            this.state.abnt.subtitle = this.ui.abntInputs.subtitle.value;
+            this.state.abnt.nature = this.ui.abntInputs.nature.value;
+            this.state.abnt.city = this.ui.abntInputs.city.value;
+            this.state.abnt.year = this.ui.abntInputs.year.value;
+
             const missing = [];
             if (!this.state.abnt.title) missing.push("Título");
             if (!this.state.abnt.author) missing.push("Autor");
@@ -441,31 +455,43 @@ const SightAI = {
             const { abnt } = this.state;
 
             if (useAbnt && abnt.title && abnt.author) {
+                const addSpacing = (twips) => new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: twips } });
+
                 // CAPA (Page 1)
                 structuralPages.push(
-                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.institution.toUpperCase(), bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
-                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 2000 } }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.institution.toUpperCase(), bold: true, size: 28, font: "Arial" })], alignment: centerAlign }),
+                    addSpacing(2000), // Push Author down
                     new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.author.toUpperCase(), bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
-                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 4000 } }),
-                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.title.toUpperCase(), bold: true, size: 32, font: "Arial" })], alignment: centerAlign }),
-                    abnt.subtitle ? new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.subtitle, size: 24, font: "Arial" })], alignment: centerAlign }) : new docxLib.Paragraph({ children: [] }),
-                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 6000 } }),
+                    addSpacing(4000), // Push Title to Center
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.title.toUpperCase(), bold: true, size: 36, font: "Arial" })], alignment: centerAlign }),
+                    abnt.subtitle ? new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.subtitle, size: 24, font: "Arial" })], alignment: centerAlign, spacing: { before: 200 } }) : new docxLib.Paragraph({ children: [] }),
+                    addSpacing(5000), // Calibrated to fit on single page
                     new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.city.toUpperCase(), bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
                     new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.year, bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
                     new docxLib.Paragraph({ children: [new docxLib.PageBreak()] }),
 
                     // FOLHA DE ROSTO (Page 2)
                     new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.author.toUpperCase(), bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
-                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 3000 } }),
-                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.title.toUpperCase(), bold: true, size: 32, font: "Arial" })], alignment: centerAlign }),
-                    abnt.subtitle ? new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.subtitle, size: 24, font: "Arial" })], alignment: centerAlign }) : new docxLib.Paragraph({ children: [] }),
-                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 1000 } }),
+                    addSpacing(3500),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.title.toUpperCase(), bold: true, size: 36, font: "Arial" })], alignment: centerAlign }),
+                    abnt.subtitle ? new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.subtitle, size: 24, font: "Arial" })], alignment: centerAlign, spacing: { before: 200 } }) : new docxLib.Paragraph({ children: [] }),
+                    addSpacing(1500),
                     new docxLib.Paragraph({
-                        children: [new docxLib.TextRun({ text: `Trabalho apresentado à ${abnt.institution} como requisito para obtenção de grau.`, size: 20, font: "Arial" })],
-                        indent: { left: 4536 },
+                        children: [new docxLib.TextRun({
+                            text: abnt.nature ? `${abnt.nature} apresentado à ${abnt.institution} como requisito para obtenção de grau.` : `Trabalho apresentado à ${abnt.institution} como requisito para obtenção de grau.`,
+                            size: 20,
+                            font: "Arial"
+                        })],
+                        indent: { left: 5670 },
                         alignment: alignment
                     }),
-                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 5000 } }),
+                    abnt.advisor ? new docxLib.Paragraph({
+                        children: [new docxLib.TextRun({ text: `Orientador: ${abnt.advisor}`, size: 22, font: "Arial" })],
+                        indent: { left: 5670 },
+                        alignment: alignment,
+                        spacing: { before: 400 }
+                    }) : new docxLib.Paragraph({ children: [] }),
+                    addSpacing(4500), // Calibrated for Folha de Rosto
                     new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.city.toUpperCase(), bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
                     new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.year, bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
                     new docxLib.Paragraph({ children: [new docxLib.PageBreak()] })

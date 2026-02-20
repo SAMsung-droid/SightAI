@@ -1,11 +1,12 @@
-::root {
+:root {
     /* Color Palette - Ultra Premium Deep Navy & Cyber Cyan */
     --primary: #00f2ff;
     --primary-glow: rgba(0, 242, 255, 0.4);
     --primary-dark: #0088cc;
     --bg-dark: #05080f;
+    /* Deep Navy Black */
     --bg-gradient: radial-gradient(circle at top right, #0a1628 0%, #05080f 100%);
-    --card-bg: rgba(15, 23, 42, 0.6);
+    --card-bg: rgba(15, 23, 42, 0.75);
     --text-main: #f1f5f9;
     --text-muted: #94a3b8;
     --glass-border: rgba(255, 255, 255, 0.08);
@@ -27,16 +28,12 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-html {
-    font-size: 16px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--primary-dark) transparent;
-}
-
 body {
-    background: var(--bg-dark);
-    background-image: var(--bg-gradient);
-    color: var(--text-main);
+    background-color: #05080f !important;
+    /* Force Dark Background */
+    background-image: var(--bg-gradient) !important;
+    background-attachment: fixed;
+    color: var(--text-main) !important;
     min-height: 100vh;
     overflow-x: hidden;
     display: flex;

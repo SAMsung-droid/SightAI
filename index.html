@@ -16,6 +16,43 @@
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.iife.js"></script>
+    <style>
+        /* LOCK SightAI THEME */
+        :root {
+            --bg-dark-fixed: #05080f;
+            --text-main-fixed: #f1f5f9;
+        }
+
+        body {
+            background-color: var(--bg-dark-fixed) !important;
+            color: var(--text-main-fixed) !important;
+            background-image: radial-gradient(circle at top right, #0a1628 0%, #05080f 100%) !important;
+            background-attachment: fixed !important;
+        }
+
+        .card {
+            background-color: rgba(15, 23, 42, 0.75) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: var(--text-main-fixed) !important;
+        }
+
+        .logo {
+            background: linear-gradient(to right, #fff, #00f2ff) !important;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        p,
+        label,
+        span {
+            color: inherit !important;
+        }
+    </style>
 </head>
 
 <body>
@@ -109,12 +146,20 @@
                         <input type="text" id="abnt-author" placeholder="Seu nome completo">
                     </div>
                     <div class="voice-params">
+                        <label for="abnt-advisor">Orientador</label>
+                        <input type="text" id="abnt-advisor" placeholder="Nome do Professor(a)">
+                    </div>
+                    <div class="voice-params">
                         <label for="abnt-title">Título do Trabalho</label>
                         <input type="text" id="abnt-title" placeholder="Título Principal">
                     </div>
                     <div class="voice-params">
                         <label for="abnt-subtitle">Subtítulo (Opcional)</label>
                         <input type="text" id="abnt-subtitle" placeholder="Complemento do título">
+                    </div>
+                    <div class="voice-params">
+                        <label for="abnt-nature">Natureza do Trabalho</label>
+                        <input type="text" id="abnt-nature" placeholder="Ex: TCC, Relatório de Estágio">
                     </div>
                     <div class="voice-params">
                         <label for="abnt-city">Cidade</label>
