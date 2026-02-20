@@ -10,10 +10,20 @@ const SightAI = {
         currentText: "",
         isProcessing: false,
         isSpeaking: false,
+        isPaused: false,
+        currentCharIndex: 0,
         synth: window.speechSynthesis,
         utterance: null,
         highContrast: false,
-        voiceCommandActive: false
+        voiceCommandActive: false,
+        abnt: {
+            institution: "",
+            author: "",
+            title: "",
+            subtitle: "",
+            city: "",
+            year: ""
+        }
     },
 
     // 1. Inicialização
@@ -64,12 +74,25 @@ const SightAI = {
             btnExport: document.getElementById('btn-export-docx'),
             btnCopy: document.getElementById('btn-copy'),
             btnSummarize: document.getElementById('btn-summarize'),
+            audioProgress: document.getElementById('audio-progress'),
             voiceSpeed: document.getElementById('voice-speed'),
             aiInsight: document.getElementById('ai-insight'),
             btnContrast: document.getElementById('toggle-contrast'),
             btnVoiceCmd: document.getElementById('toggle-voice-cmd'),
             btnRestart: document.getElementById('btn-restart'),
-            btnContinue: document.getElementById('btn-continue')
+            btnContinue: document.getElementById('btn-continue'),
+            btnConfigAbnt: document.getElementById('btn-config-abnt'),
+            btnExportAbnt: document.getElementById('btn-export-abnt'),
+            btnCloseAbnt: document.getElementById('btn-close-abnt'),
+            abntCard: document.getElementById('abnt-config-card'),
+            abntInputs: {
+                institution: document.getElementById('abnt-institution'),
+                author: document.getElementById('abnt-author'),
+                title: document.getElementById('abnt-title'),
+                subtitle: document.getElementById('abnt-subtitle'),
+                city: document.getElementById('abnt-city'),
+                year: document.getElementById('abnt-year')
+            }
         };
     },
 
@@ -100,7 +123,8 @@ const SightAI = {
         this.ui.btnPlay.addEventListener('click', () => this.toggleSpeech());
         this.ui.btnContrast.addEventListener('click', () => this.toggleContrast());
         this.ui.btnVoiceCmd.addEventListener('click', () => this.toggleVoiceCommands());
-        this.ui.btnExport.addEventListener('click', () => this.exportToDocx());
+        this.ui.btnExport.addEventListener('click', () => this.exportToDocx(false));
+        this.ui.btnExportAbnt.addEventListener('click', () => this.exportToDocx(true));
         this.ui.btnCopy.addEventListener('click', () => this.copyToClipboard());
         this.ui.btnSummarize.addEventListener('click', () => this.generateAISummary());
 
@@ -111,10 +135,21 @@ const SightAI = {
 
         // Voice Speed update
         this.ui.voiceSpeed.addEventListener('input', () => {
-            if (this.state.isSpeaking) {
-                // Se estiver falando, cancelamos e reiniciamos da frase atual seria o ideal, 
-                // mas para simplicidade aqui apenas paramos e o usuário dá play de novo se quiser.
+            if (this.state.isSpeaking || this.state.isPaused) {
                 this.stopSpeech();
+                this.startSpeech(this.state.currentCharIndex);
+            }
+        });
+
+        // Audio Progress seeking
+        this.ui.audioProgress.addEventListener('change', () => {
+            const percent = parseFloat(this.ui.audioProgress.value);
+            const newIndex = Math.floor((percent / 100) * this.state.currentText.length);
+            this.state.currentCharIndex = newIndex;
+
+            if (this.state.isSpeaking || this.state.isPaused) {
+                this.stopSpeech();
+                this.startSpeech(newIndex);
             }
         });
 
@@ -122,6 +157,21 @@ const SightAI = {
         this.ui.btnContinue.addEventListener('click', () => {
             console.log("Continuando edição...");
             this.announce("Você pode continuar editando ou exportando seu texto.");
+        });
+
+        // ABNT UI Events
+        this.ui.btnConfigAbnt.addEventListener('click', () => {
+            this.ui.abntCard.classList.toggle('hidden');
+        });
+
+        this.ui.btnCloseAbnt.addEventListener('click', () => {
+            this.ui.abntCard.classList.add('hidden');
+        });
+
+        Object.keys(this.ui.abntInputs).forEach(key => {
+            this.ui.abntInputs[key].addEventListener('input', (e) => {
+                this.state.abnt[key] = e.target.value;
+            });
         });
     },
 
@@ -162,8 +212,8 @@ const SightAI = {
                 fullText = await this.extractText(pdf);
             }
 
-            this.state.currentText = fullText;
-            this.showResults(fullText);
+            this.state.currentText = this.reflowText(fullText);
+            this.showResults(this.state.currentText);
 
         } catch (error) {
             console.error("ERRO NO SIGHTAI:", error);
@@ -185,6 +235,53 @@ const SightAI = {
     },
 
     // 4. Advanced OCR (Tesseract.js)
+    reflowText(text) {
+        if (!text) return "";
+
+        // 1. Remove scan artifacts
+        let cleaned = text
+            .replace(/Digitalizado com CamScanner/gi, '')
+            .replace(/CamScanner/gi, '')
+            .replace(/Página \d+/g, '');
+
+        // 2. Reflow lines: join lines that don't end in sentence-ending punctuation
+        const lines = cleaned.split('\n');
+        let reflowed = "";
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (!line) {
+                reflowed += "\n\n";
+                continue;
+            }
+
+            // Remove internal hyphenation (word- at end of line)
+            if (line.endsWith('-')) {
+                line = line.slice(0, -1);
+                reflowed += line;
+                continue;
+            }
+
+            reflowed += line;
+
+            // If line doesn't end with . ! ? : or a common lowercase start for next line, add space.
+            // Otherwise add newline.
+            const nextLine = (lines[i + 1] || "").trim();
+            const endsInPunct = /[.!?:;]$/.test(line);
+            const nextIsCap = /^[A-Z0-9]/.test(nextLine);
+
+            if (!endsInPunct && !nextIsCap && nextLine) {
+                reflowed += " ";
+            } else {
+                reflowed += "\n";
+            }
+        }
+
+        return reflowed
+            .replace(/\n{3,}/g, '\n\n') // Normalize multiple breaks
+            .trim();
+    },
+
     async performOCR(pdf) {
         let text = "";
 
@@ -242,70 +339,186 @@ const SightAI = {
     },
 
     // 5. TTS Features
-    startSpeech() {
+    startSpeech(startIndex = 0) {
         if (!this.state.currentText) return;
 
-        this.state.utterance = new SpeechSynthesisUtterance(this.state.currentText);
+        const textToSpeak = this.state.currentText.substring(startIndex);
+        if (!textToSpeak.trim()) return;
+
+        this.state.utterance = new SpeechSynthesisUtterance(textToSpeak);
         this.state.utterance.lang = 'pt-BR';
         this.state.utterance.rate = parseFloat(this.ui.voiceSpeed.value);
 
+        this.state.utterance.onboundary = (event) => {
+            if (event.name === 'word') {
+                this.state.currentCharIndex = startIndex + event.charIndex;
+                const progress = (this.state.currentCharIndex / this.state.currentText.length) * 100;
+                this.ui.audioProgress.value = progress;
+            }
+        };
+
         this.state.utterance.onstart = () => {
             this.state.isSpeaking = true;
+            this.state.isPaused = false;
             document.getElementById('play-icon').classList.add('hidden');
             document.getElementById('pause-icon').classList.remove('hidden');
-            this.announce("Iniciando leitura.");
+            this.announce("Lendo.");
         };
 
         this.state.utterance.onend = () => {
-            this.state.isSpeaking = false;
-            document.getElementById('play-icon').classList.remove('hidden');
-            document.getElementById('pause-icon').classList.add('hidden');
+            if (!this.state.isPaused) {
+                this.state.isSpeaking = false;
+                this.state.currentCharIndex = 0;
+                this.ui.audioProgress.value = 0;
+                document.getElementById('play-icon').classList.remove('hidden');
+                document.getElementById('pause-icon').classList.add('hidden');
+            }
         };
 
         this.state.synth.speak(this.state.utterance);
     },
 
+    pauseSpeech() {
+        this.state.synth.cancel();
+        this.state.isSpeaking = false;
+        this.state.isPaused = true;
+        document.getElementById('play-icon').classList.remove('hidden');
+        document.getElementById('pause-icon').classList.add('hidden');
+        this.announce("Pausado.");
+    },
+
     stopSpeech() {
         this.state.synth.cancel();
         this.state.isSpeaking = false;
+        this.state.isPaused = false;
         document.getElementById('play-icon').classList.remove('hidden');
         document.getElementById('pause-icon').classList.add('hidden');
     },
 
     toggleSpeech() {
         if (this.state.isSpeaking) {
-            this.stopSpeech();
+            this.pauseSpeech();
+        } else if (this.state.isPaused) {
+            this.startSpeech(this.state.currentCharIndex);
         } else {
-            this.startSpeech();
+            this.startSpeech(0);
         }
     },
 
     // 6. DOCX Export
-    async exportToDocx() {
+    async exportToDocx(useAbnt = false) {
         if (!this.state.currentText) return;
 
-        const originalBtnText = this.ui.btnExport.textContent;
-        this.ui.btnExport.textContent = "Gerando...";
-        this.ui.btnExport.disabled = true;
+        const btn = useAbnt ? this.ui.btnExportAbnt : this.ui.btnExport;
+        const originalBtnText = btn.textContent;
+
+        // Validation for ABNT
+        if (useAbnt) {
+            const missing = [];
+            if (!this.state.abnt.title) missing.push("Título");
+            if (!this.state.abnt.author) missing.push("Autor");
+            if (!this.state.abnt.institution) missing.push("Instituição");
+
+            if (missing.length > 0) {
+                alert(`Para exportar com ABNT, preencha: ${missing.join(", ")}`);
+                this.ui.abntCard.classList.remove('hidden');
+                return;
+            }
+        }
+
+        btn.textContent = "Gerando...";
+        btn.disabled = true;
 
         try {
             const docxLib = window.docx;
             if (!docxLib) throw new Error("Biblioteca DOCX não carregada.");
 
+            const alignment = docxLib.AlignmentType ? docxLib.AlignmentType.JUSTIFIED : "justified";
+            const centerAlign = docxLib.AlignmentType ? docxLib.AlignmentType.CENTER : "center";
+
+            // Structural Pages (Capa e Folha de Rosto)
+            const structuralPages = [];
+            const { abnt } = this.state;
+
+            if (useAbnt && abnt.title && abnt.author) {
+                // CAPA (Page 1)
+                structuralPages.push(
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.institution.toUpperCase(), bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 2000 } }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.author.toUpperCase(), bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 4000 } }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.title.toUpperCase(), bold: true, size: 32, font: "Arial" })], alignment: centerAlign }),
+                    abnt.subtitle ? new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.subtitle, size: 24, font: "Arial" })], alignment: centerAlign }) : new docxLib.Paragraph({ children: [] }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 6000 } }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.city.toUpperCase(), bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.year, bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
+                    new docxLib.Paragraph({ children: [new docxLib.PageBreak()] }),
+
+                    // FOLHA DE ROSTO (Page 2)
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.author.toUpperCase(), bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 3000 } }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.title.toUpperCase(), bold: true, size: 32, font: "Arial" })], alignment: centerAlign }),
+                    abnt.subtitle ? new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.subtitle, size: 24, font: "Arial" })], alignment: centerAlign }) : new docxLib.Paragraph({ children: [] }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 1000 } }),
+                    new docxLib.Paragraph({
+                        children: [new docxLib.TextRun({ text: `Trabalho apresentado à ${abnt.institution} como requisito para obtenção de grau.`, size: 20, font: "Arial" })],
+                        indent: { left: 4536 },
+                        alignment: alignment
+                    }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun("")], spacing: { before: 5000 } }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.city.toUpperCase(), bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
+                    new docxLib.Paragraph({ children: [new docxLib.TextRun({ text: abnt.year, bold: true, size: 24, font: "Arial" })], alignment: centerAlign }),
+                    new docxLib.Paragraph({ children: [new docxLib.PageBreak()] })
+                );
+            }
+
             const paragraphs = this.state.currentText.split('\n')
                 .map(line => {
+                    const text = line.trim();
+                    if (!text) return new docxLib.Paragraph({ children: [new docxLib.TextRun("")] });
+
+                    const isHeading = useAbnt && text.length > 5 && text === text.toUpperCase() && !text.endsWith('.') && !text.includes('  ');
+
                     return new docxLib.Paragraph({
-                        children: [new docxLib.TextRun({ text: line.trim() || "", size: 24, font: "Arial" })],
-                        spacing: { after: 200 }
+                        children: [new docxLib.TextRun({
+                            text: text,
+                            size: isHeading ? 28 : 24,
+                            bold: isHeading,
+                            font: "Arial"
+                        })],
+                        alignment: isHeading ? centerAlign : alignment,
+                        spacing: { line: 360, after: 200, before: isHeading ? 400 : 0 },
+                        indent: isHeading ? {} : (useAbnt ? { firstLine: 709 } : {})
                     });
                 });
 
             const doc = new docxLib.Document({
-                sections: [{ properties: {}, children: paragraphs }],
+                sections: [{
+                    properties: {
+                        page: {
+                            size: {
+                                width: 11906,
+                                height: 16838
+                            },
+                            margin: useAbnt ? {
+                                top: 1701,
+                                left: 1701,
+                                bottom: 1134,
+                                right: 1134,
+                            } : {
+                                top: 1134, // Standard 2cm
+                                left: 1134,
+                                bottom: 1134,
+                                right: 1134
+                            },
+                        },
+                    },
+                    children: [...structuralPages, ...paragraphs]
+                }],
             });
 
             const blob = await docxLib.Packer.toBlob(doc);
-            const fileName = `SightAI_Export_${Date.now()}.docx`;
+            const fileName = `SightAI_${useAbnt ? 'ABNT' : 'DOCX'}_${Date.now()}.docx`;
 
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -314,13 +527,13 @@ const SightAI = {
             link.click();
             window.URL.revokeObjectURL(url);
 
-            this.announce("Exportação concluída.");
+            this.announce(useAbnt ? "Exportação ABNT concluída." : "Exportação DOCX concluída.");
         } catch (error) {
-            console.error(error);
-            alert("Erro na exportação.");
+            console.error("Erro Export DOCX:", error);
+            alert(`Erro na exportação: ${error.message}`);
         } finally {
-            this.ui.btnExport.textContent = originalBtnText;
-            this.ui.btnExport.disabled = false;
+            btn.textContent = originalBtnText;
+            btn.disabled = false;
         }
     },
 
@@ -390,7 +603,9 @@ const SightAI = {
 
     resetApp() {
         this.state.currentText = "";
-        if (this.state.isSpeaking) this.stopSpeech();
+        this.state.currentCharIndex = 0;
+        this.ui.audioProgress.value = 0;
+        if (this.state.isSpeaking || this.state.isPaused) this.stopSpeech();
         this.ui.outputText.value = "";
         this.ui.fileInput.value = "";
         this.ui.progress.style.width = "0%";
