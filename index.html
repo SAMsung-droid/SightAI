@@ -80,13 +80,59 @@
             <div class="results-header">
                 <h2 id="results-title">Conteúdo Acessível</h2>
                 <div class="action-buttons">
+                    <button class="btn btn-secondary" id="btn-config-abnt">
+                        Configurar ABNT
+                    </button>
                     <button class="btn btn-secondary" id="btn-export-docx">
-                        Exportar DOCX
+                        Exportar DOCX (sem ABNT)
                     </button>
                     <button class="btn btn-secondary" id="btn-copy">
                         Copiar Texto
                     </button>
                 </div>
+            </div>
+
+            <!-- ABNT Configuration Modal-style Card -->
+            <div id="abnt-config-card" class="card hidden" style="margin-bottom: 2rem; border-color: var(--primary);">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <h3 style="margin-bottom: 1rem; color: var(--primary);">Configurações ABNT</h3>
+                    <button id="btn-close-abnt" class="btn-secondary"
+                        style="border: none; background: transparent; cursor: pointer;">✕</button>
+                </div>
+                <div class="abnt-form grid-2">
+                    <div class="voice-params">
+                        <label for="abnt-institution">Instituição</label>
+                        <input type="text" id="abnt-institution" placeholder="Ex: Universidade de Brasília">
+                    </div>
+                    <div class="voice-params">
+                        <label for="abnt-author">Autor</label>
+                        <input type="text" id="abnt-author" placeholder="Seu nome completo">
+                    </div>
+                    <div class="voice-params">
+                        <label for="abnt-title">Título do Trabalho</label>
+                        <input type="text" id="abnt-title" placeholder="Título Principal">
+                    </div>
+                    <div class="voice-params">
+                        <label for="abnt-subtitle">Subtítulo (Opcional)</label>
+                        <input type="text" id="abnt-subtitle" placeholder="Complemento do título">
+                    </div>
+                    <div class="voice-params">
+                        <label for="abnt-city">Cidade</label>
+                        <input type="text" id="abnt-city" placeholder="Ex: São Paulo">
+                    </div>
+                    <div class="voice-params">
+                        <label for="abnt-year">Ano</label>
+                        <input type="text" id="abnt-year" placeholder="2026">
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: center; margin-top: 1.5rem;">
+                    <button class="btn btn-primary" id="btn-export-abnt" style="width: auto; min-width: 200px;">
+                        Gerar DOCX com ABNT
+                    </button>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem; text-align: center;">
+                    * Estes dados serão usados para gerar a Capa e Folha de Rosto no padrão NBR 14724.
+                </p>
             </div>
 
             <div class="audio-controls-card">
@@ -106,7 +152,12 @@
                         </svg>
                     </button>
                     <div class="voice-params">
-                        <label for="voice-speed">Velocidade da Leitura</label>
+                        <label for="audio-progress">Progresso da Leitura</label>
+                        <input type="range" id="audio-progress" min="0" max="100" value="0" step="0.1"
+                            aria-label="Progresso do áudio">
+                    </div>
+                    <div class="voice-params">
+                        <label for="voice-speed">Velocidade</label>
                         <input type="range" id="voice-speed" min="0.5" max="2" step="0.1" value="1"
                             aria-label="Velocidade da voz">
                     </div>
