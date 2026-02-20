@@ -1,4 +1,4 @@
-:root {
+::root {
     /* Color Palette - Ultra Premium Deep Navy & Cyber Cyan */
     --primary: #00f2ff;
     --primary-glow: rgba(0, 242, 255, 0.4);
@@ -438,6 +438,37 @@ textarea.text-display:focus {
     border-color: var(--primary);
     box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
     background: rgba(15, 23, 42, 0.7);
+}
+
+/* ABNT Form Grid */
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.abnt-form input[type="text"] {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    font-size: 0.9rem;
+    outline: none;
+    transition: var(--transition-smooth);
+}
+
+.abnt-form input[type="text"]:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 15px var(--primary-glow);
+    background: rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 600px) {
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Navigation Controls - Base Styles */
