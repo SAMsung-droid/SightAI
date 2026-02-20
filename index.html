@@ -7,6 +7,7 @@
     <meta name="description" content="SightAI - Transformando PDFs em conhecimento acessível com IA e OCR avançado.">
     <title>SightAI | Acessibilidade Inteligente</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -118,7 +119,7 @@
                 <h2 id="results-title">Conteúdo Acessível</h2>
                 <div class="action-buttons">
                     <button class="btn btn-secondary" id="btn-config-abnt">
-                        Configurar ABNT
+                        Configurar ABNT <span class="premium-badge">Premium</span>
                     </button>
                     <button class="btn btn-secondary" id="btn-export-docx">
                         Exportar DOCX (sem ABNT)
@@ -226,11 +227,92 @@
     <footer class="app-footer">
         <div class="footer-content">
             <div class="creator-info">
-                <p>Criado por: <strong>J. Matheus</strong> & <strong>Álvaro Samuel</strong></p>
+                <p>Criado por: <strong>José Matheus</strong> & <strong>Álvaro Samuel</strong></p>
                 <p class="project-year">© 2026 SightAI | Tecnologia Assistiva Universal</p>
             </div>
         </div>
     </footer>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal-overlay">
+        <div class="payment-modal">
+            <button class="modal-close" id="btn-close-payment" aria-label="Fechar">✕</button>
+            <div class="payment-header">
+                <h3>Upgrade para Premium</h3>
+                <p>Desbloqueie exportações ABNT ilimitadas e precisão máxima.</p>
+            </div>
+            <div id="payment-plans" class="pricing-grid">
+                <!-- Gratuito -->
+                <div class="pricing-card" id="card-free" style="border-color: rgba(255,255,255,0.05);">
+                    <div class="active-plan-badge hidden">✓ Ativo</div>
+                    <h4>🔓 Gratuito</h4>
+                    <span class="price">R$ 0,00<span>/sempre</span></span>
+                    <ul class="pricing-features">
+                        <li>2 PDFs por mês</li>
+                        <li>Limite de páginas</li>
+                        <li>Sem voz premium</li>
+                        <li>Sem ABNT</li>
+                    </ul>
+                    <button class="btn btn-secondary" id="btn-free-tier">Plano Atual</button>
+                </div>
+
+                <!-- Mensal -->
+                <div class="pricing-card" id="card-monthly">
+                    <div class="active-plan-badge hidden">✓ Ativo</div>
+                    <h4>⭐ Premium Mensal</h4>
+                    <span class="price">R$ 3,99<span>/mês</span></span>
+                    <ul class="pricing-features">
+                        <li>PDFs Ilimitados</li>
+                        <li>OCR Completo</li>
+                        <li>ABNT Ilimitado</li>
+                        <li>Sem Anúncios</li>
+                    </ul>
+                    <button class="btn btn-secondary">Assinar Agora</button>
+                </div>
+
+                <!-- Anual -->
+                <div class="pricing-card featured" id="card-annual">
+                    <div class="active-plan-badge hidden">✓ Ativo</div>
+                    <h4>🔥 Premium Anual</h4>
+                    <span class="price">R$ 39,99<span>/ano</span></span>
+                    <ul class="pricing-features">
+                        <li>Tudo do Mensal</li>
+                        <li>Economia de R$ 7,89</li>
+                        <li>Melhor custo-benefício</li>
+                        <li>Suporte VIP</li>
+                    </ul>
+                    <button class="btn btn-primary">Assinar Agora</button>
+                </div>
+            </div>
+
+            <!-- Mercado Pago Card Payment Brick -->
+            <div id="mercado-pago-ui" class="hidden" style="margin-top: 2rem;">
+                <div class="mp-header">
+                    <button id="btn-back-plans"
+                        style="background: transparent; border: none; color: var(--primary); cursor: pointer; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        ← Voltar aos planos
+                    </button>
+                </div>
+                <!-- O Brick do Mercado Pago será injetado aqui -->
+                <div id="cardPaymentBrick_container"></div>
+            </div>
+
+            <!-- Premium Success / Go to Config -->
+            <div id="premium-status-section" class="hidden"
+                style="text-align: center; margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
+                <p style="color: #10b981; font-weight: bold; margin-bottom: 1rem;">✨ Você é Premium! Todas as funções
+                    estão liberadas.</p>
+                <button id="btn-go-to-abnt" class="btn btn-primary" style="width: 100%;">
+                    Ir para Configurações ABNT
+                </button>
+            </div>
+
+            <p id="payment-footer-text"
+                style="text-align: center; font-size: 0.7rem; color: var(--text-muted); margin-top: 1.5rem;">
+                Processamento seguro via SightAI Checkout. Cancele a qualquer momento.
+            </p>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>

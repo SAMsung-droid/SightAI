@@ -620,6 +620,267 @@ textarea.text-display:focus {
     }
 }
 
+/* PREMIUM MODAL STYLES */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.payment-modal {
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(0, 242, 255, 0.3);
+    border-radius: 24px;
+    padding: 2.5rem;
+    max-width: 950px;
+    width: 95%;
+    box-shadow: 0 0 50px rgba(0, 242, 255, 0.15);
+    position: relative;
+    transform: translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-overlay.active .payment-modal {
+    transform: translateY(0);
+}
+
+.modal-close {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-main-fixed);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.modal-close:hover {
+    transform: scale(1.1) rotate(90deg);
+}
+
+.payment-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.payment-header h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.8rem;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.payment-header p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.pricing-card {
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.active-plan-badge {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: var(--success);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 20px;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    z-index: 10;
+}
+
+.pricing-card:hover {
+    border-color: var(--primary);
+    background: rgba(30, 41, 59, 0.8);
+    transform: translateY(-5px);
+}
+
+.pricing-card.featured {
+    border-color: var(--primary);
+    background: linear-gradient(135deg, rgba(0, 242, 255, 0.1) 0%, rgba(15, 23, 42, 0.5) 100%);
+    box-shadow: 0 0 30px rgba(0, 242, 255, 0.1);
+}
+
+.pricing-card.featured::before {
+    content: "ECONOMIZE 15%";
+    position: absolute;
+    top: 12px;
+    right: -35px;
+    background: var(--primary);
+    color: #000;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 4px 40px;
+    transform: rotate(45deg);
+}
+
+.price {
+    font-size: 2.2rem;
+    font-weight: 800;
+    display: block;
+    margin: 1rem 0;
+    color: var(--text-main-fixed);
+}
+
+.price span {
+    font-size: 0.9rem;
+    opacity: 0.6;
+    font-weight: 400;
+}
+
+.pricing-card h4 {
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.9rem;
+}
+
+.pricing-features {
+    list-style: none;
+    margin: 1.5rem 0;
+    text-align: left;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.pricing-features li {
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pricing-features li::before {
+    content: "✓";
+    color: var(--primary);
+    font-weight: bold;
+}
+
+/* PREMIUM BADGE */
+.premium-badge {
+    background: var(--primary);
+    color: #000;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.high-contrast .premium-badge {
+    background: #fff200;
+}
+
+/* MERCADO PAGO UI */
+.mp-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.mp-option {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.mp-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--primary);
+    transform: translateX(5px);
+}
+
+.mp-icon {
+    font-size: 1.5rem;
+    background: rgba(0, 242, 255, 0.1);
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+}
+
+.mp-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.mp-info strong {
+    color: var(--text-main-fixed);
+    font-size: 1rem;
+}
+
+.mp-info span {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* Spinner for processing */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(0, 242, 255, 0.1);
+    border-left-color: var(--primary);
+    border-radius: 50%;
+    margin: 0 auto;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Utilities */
 .hidden {
     display: none !important;

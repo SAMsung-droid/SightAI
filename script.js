@@ -7,6 +7,9 @@ if (typeof pdfjsLib !== 'undefined') {
 
 const SightAI = {
     state: {
+        mp: null,
+        bricksBuilder: null,
+        cardPaymentBrickController: null,
         currentText: "",
         isProcessing: false,
         isSpeaking: false,
@@ -24,7 +27,9 @@ const SightAI = {
             subtitle: "",
             nature: "",
             city: "",
-            year: ""
+            year: "",
+            isPremium: false,
+            activePlan: "gratuito"
         }
     },
 
@@ -34,11 +39,17 @@ const SightAI = {
             console.log("Iniciando SightAI...");
             this.cacheDOM();
             this.bindEvents();
+            this.initMercadoPago();
             this.runSelfTest();
             this.announce("SightAI iniciado.");
         } catch (error) {
             console.error("Erro fatal na inicialização:", error);
         }
+    },
+
+    initMercadoPago() {
+        this.state.mp = new MercadoPago('TEST-e69c9c32-cf87-49a2-8422-0d006665a2e8');
+        this.state.bricksBuilder = this.state.mp.bricks();
     },
 
     // Verifica se as bibliotecas externas estão prontas (Modo Silencioso)
@@ -96,7 +107,17 @@ const SightAI = {
                 nature: document.getElementById('abnt-nature'),
                 city: document.getElementById('abnt-city'),
                 year: document.getElementById('abnt-year')
-            }
+            },
+            paymentModal: document.getElementById('payment-modal'),
+            btnClosePayment: document.getElementById('btn-close-payment'),
+            btnPlanMonthly: document.querySelector('#card-monthly .btn'),
+            btnPlanAnnual: document.querySelector('#card-annual .btn'),
+            paymentPlans: document.getElementById('payment-plans'),
+            mpInterface: document.getElementById('mercado-pago-ui'),
+            btnBackPlans: document.getElementById('btn-back-plans'),
+            paymentFooter: document.getElementById('payment-footer-text'),
+            premiumSection: document.getElementById('premium-status-section'),
+            btnGoToAbnt: document.getElementById('btn-go-to-abnt')
         };
     },
 
@@ -165,7 +186,12 @@ const SightAI = {
 
         // ABNT UI Events
         this.ui.btnConfigAbnt.addEventListener('click', () => {
-            this.ui.abntCard.classList.toggle('hidden');
+            this.togglePaymentModal(true);
+        });
+
+        this.ui.btnGoToAbnt.addEventListener('click', () => {
+            this.togglePaymentModal(false);
+            this.ui.abntCard.classList.remove('hidden');
         });
 
         this.ui.btnCloseAbnt.addEventListener('click', () => {
@@ -177,6 +203,168 @@ const SightAI = {
                 this.state.abnt[key] = e.target.value;
             });
         });
+
+        // Payment Modal Events
+        this.ui.btnClosePayment.addEventListener('click', () => this.togglePaymentModal(false));
+        this.ui.btnPlanMonthly.addEventListener('click', () => this.showPaymentOptions('mensal'));
+        this.ui.btnPlanAnnual.addEventListener('click', () => this.showPaymentOptions('anual'));
+
+        this.ui.btnBackPlans.addEventListener('click', () => {
+            if (this.state.cardPaymentBrickController) {
+                this.state.cardPaymentBrickController.unmount();
+            }
+            this.togglePaymentView('plans');
+        });
+
+        // Close modal on overlay click
+        this.ui.paymentModal.addEventListener('click', (e) => {
+            if (e.target === this.ui.paymentModal) this.togglePaymentModal(false);
+        });
+
+        document.getElementById('btn-free-tier').addEventListener('click', () => {
+            alert("Você já está no plano Gratuito. Faça upgrade para desbloquear mais recursos!");
+        });
+    },
+
+    togglePaymentModal(show) {
+        if (show) {
+            this.togglePaymentView('plans');
+            this.updateActivePlanUI();
+            this.ui.paymentModal.classList.add('active');
+            this.announce("Upgrade para Premium: R$ 3,99 mensal ou R$ 39,99 anual.");
+        } else {
+            this.ui.paymentModal.classList.remove('active');
+        }
+    },
+
+    updateActivePlanUI() {
+        const { activePlan } = this.state.abnt;
+
+        // Reset all badges and buttons
+        document.querySelectorAll('.active-plan-badge').forEach(b => b.classList.add('hidden'));
+        document.querySelectorAll('.pricing-card button').forEach(b => {
+            b.textContent = "Assinar Agora";
+            b.classList.remove('btn-success');
+        });
+
+        // Highlight active plan
+        const cardId = activePlan === 'anual' ? 'card-annual' : (activePlan === 'mensal' ? 'card-monthly' : 'card-free');
+        const card = document.getElementById(cardId);
+
+        if (this.state.abnt.isPremium) {
+            this.ui.premiumSection.classList.remove('hidden');
+        } else {
+            this.ui.premiumSection.classList.add('hidden');
+        }
+
+        if (card) {
+            card.querySelector('.active-plan-badge').classList.remove('hidden');
+            const btn = card.querySelector('.btn');
+            if (activePlan === 'gratuito') {
+                btn.textContent = "Plano Atual";
+            } else {
+                btn.textContent = "Plano Ativo";
+                btn.style.background = "var(--success)";
+                btn.style.color = "#fff";
+            }
+        }
+    },
+
+    togglePaymentView(view) {
+        if (view === 'plans') {
+            this.ui.paymentPlans.classList.remove('hidden');
+            this.ui.mpInterface.classList.add('hidden');
+            this.ui.paymentFooter.classList.remove('hidden');
+        } else {
+            this.ui.paymentPlans.classList.add('hidden');
+            this.ui.mpInterface.classList.remove('hidden');
+            this.ui.paymentFooter.classList.add('hidden');
+            // this.ui.mpProcessing.classList.add('hidden'); // This element doesn't exist in cacheDOM
+            document.querySelector('.mp-options')?.classList.remove('hidden'); // Use optional chaining
+        }
+    },
+
+    async showPaymentOptions(plan) {
+        this.state.selectedPlan = plan;
+        this.togglePaymentView('mp');
+
+        const amount = plan === 'anual' ? 39.99 : 3.99;
+        const description = plan === 'anual' ? 'Assinatura Anual SightAI' : 'Assinatura Mensal SightAI';
+
+        const settings = {
+            initialization: {
+                amount: amount,
+                payer: {
+                    email: "test_user@email.com", // Em produção, pegar o email do usuário
+                },
+            },
+            customization: {
+                visual: {
+                    style: {
+                        theme: 'dark',
+                    },
+                },
+                paymentMethods: {
+                    maxInstallments: 12,
+                }
+            },
+            callbacks: {
+                onReady: () => {
+                    console.log("Brick Pronto");
+                },
+                onSubmit: (formData) => {
+                    return new Promise((resolve, reject) => {
+                        fetch("http://localhost:3000/process_payment", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                                formData: {
+                                    ...formData,
+                                    description: description,
+                                    transaction_amount: amount
+                                }
+                            }),
+                        })
+                            .then((response) => response.json())
+                            .then((result) => {
+                                if (result.status === 'approved') {
+                                    this.handlePaymentSuccess();
+                                    resolve();
+                                } else {
+                                    alert("Pagamento não aprovado: " + result.status);
+                                    reject();
+                                }
+                            })
+                            .catch((error) => {
+                                console.error("Erro no fetch:", error);
+                                alert("Erro ao conectar com o servidor.");
+                                reject();
+                            });
+                    });
+                },
+                onError: (error) => {
+                    console.error("Erro no Brick:", error);
+                },
+            },
+        };
+
+        this.state.cardPaymentBrickController = await this.state.bricksBuilder.create(
+            'cardPayment',
+            'cardPaymentBrick_container',
+            settings
+        );
+    },
+
+    handlePaymentSuccess() {
+        this.state.abnt.isPremium = true;
+        this.state.abnt.activePlan = this.state.selectedPlan;
+        this.togglePaymentModal(false);
+        this.announce("Pagamento confirmado via Mercado Pago!");
+
+        const planText = this.state.selectedPlan === 'anual' ? 'Anual' : 'Mensal';
+        alert(`Pagamento ${planText} via Cartão confirmado! SightAI Premium ativado.`);
     },
 
     // 2. Processamento de Arquivo
@@ -413,11 +601,12 @@ const SightAI = {
     async exportToDocx(useAbnt = false) {
         if (!this.state.currentText) return;
 
-        const btn = useAbnt ? this.ui.btnExportAbnt : this.ui.btnExport;
-        const originalBtnText = btn.textContent;
-
-        // Validation for ABNT
+        // Validation for ABNT & Premium
         if (useAbnt) {
+            if (!this.state.abnt.isPremium) {
+                this.togglePaymentModal(true);
+                return;
+            }
             // Sync current values from UI inputs
             this.state.abnt.institution = this.ui.abntInputs.institution.value;
             this.state.abnt.author = this.ui.abntInputs.author.value;
@@ -439,6 +628,9 @@ const SightAI = {
                 return;
             }
         }
+
+        const btn = useAbnt ? this.ui.btnExportAbnt : this.ui.btnExport;
+        const originalBtnText = btn.textContent;
 
         btn.textContent = "Gerando...";
         btn.disabled = true;
